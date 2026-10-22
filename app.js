@@ -84,7 +84,7 @@ function renderLinear(b, person) {
   $("section").innerHTML = `
     <h2>🎚️ Push &amp; Pull</h2>
     <p class="lead">Like a sound mixing board: the output starts at the average. Each feature is a fader that pushes the
-      prediction up ▲ or down ▼ from the middle line. Output = starting point + every fader.</p>
+      prediction up ▲ or down ▼ from the middle line. Output = starting point + every fader. <b>Drag a fader to try it!</b></p>
     <div class="card">
       <div id="lin-mixer"></div>
       <div class="person-panel">
@@ -106,11 +106,14 @@ function renderLinear(b, person) {
     <div class="card"><h3>🧾 The exact numbers</h3><div id="lin-main"></div></div>
     <div class="card soft" id="lin-coef"></div>`;
 
+  let drag = null, lastScale = 1;
   const update = () => {
     const ex = m10.linearExplain(b, state.values);
     const edited = Object.keys(person.values).some((k) => Math.abs(person.values[k] - state.values[k]) > 1e-9);
     $("lin-who").textContent = edited ? "(edited)" : `(${person.description})`;
-    $("lin-mixer").innerHTML = mixer(b, ex);
+    // While dragging, the fader scale is frozen so the board doesn't rescale under the pointer.
+    lastScale = drag ? drag.scale : Math.max(...Object.values(ex.groupedPushes).map(Math.abs)) || 1;
+    $("lin-mixer").innerHTML = mixer(b, ex, lastScale);
     $("lin-main").innerHTML = waterfall(b, ex) + (edited ? `<p class="note">✏️ Edited values: this is no longer a real survey participant.</p>` : "")
       + (!edited && b.id === "fev1" && person.values.age < 18
         ? `<p class="note">⚠️ Measured: ${fmt(person.observed)} ${b.units}. A straight line can't follow lungs growing in childhood and shrinking later, so it predicts far too much for this child.</p>` : "");
@@ -121,6 +124,46 @@ function renderLinear(b, person) {
   document.querySelectorAll("[data-g]").forEach((el) =>
     (el.onchange = () => { Object.assign(state.values, m10.categoryInputs(b, el.dataset.g, el.value)); update(); }));
   $("lin-reset").onclick = () => { state.values = null; render(); };
+
+  // Dragging a fader: its height is a push; turn that push back into the feature value that gives it
+  // (value = training average + push ÷ coefficient). Categories snap to the level with the nearest push.
+  const lin = b.linear;
+  const fromPointer = (e) => {
+    const svg = $("lin-mixer").querySelector("svg");
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const y = pt.matrixTransform(svg.getScreenCTM().inverse()).y;
+    const push = clamp((MIX.mid - y) / MIX.travel, -1, 1) * drag.scale;
+    const g = groups.find((g) => g.name === drag.name);
+    if (g) {
+      const pushOf = (level) => {
+        const x = m10.categoryInputs(b, g.name, level);
+        return sum(Object.keys(x).map((c) => lin.coefficients[c] * (x[c] - lin.reference[c])));
+      };
+      const level = g.levels.map((lv) => lv.label).sort((a, c) => Math.abs(pushOf(a) - push) - Math.abs(pushOf(c) - push))[0];
+      Object.assign(state.values, m10.categoryInputs(b, g.name, level));
+      document.querySelector(`[data-g="${g.name}"]`).value = level;
+    } else {
+      const c = lin.coefficients[drag.name];
+      if (Math.abs(c) < 1e-12) return;
+      const s = b.feature_stats[drag.name];
+      const v = Math.round(clamp(lin.reference[drag.name] + push / c, s.min, s.max) * 10) / 10;
+      state.values[drag.name] = v;
+      document.querySelector(`[data-f="${drag.name}"]`).value = v;
+    }
+    update();
+  };
+  const onMove = (e) => { if (drag) fromPointer(e); };
+  const onUp = () => { drag = null; window.removeEventListener("pointermove", onMove); update(); };
+  $("lin-mixer").onpointerdown = (e) => {
+    const t = e.target.closest("[data-fader]");
+    if (!t) return;
+    e.preventDefault();
+    drag = { name: t.dataset.fader, scale: lastScale };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+    fromPointer(e);
+  };
   update();
 }
 
@@ -129,17 +172,19 @@ const KNOBS = ["#ff5a5f", "#ffd23f", "#2ec4b6", "#3a86ff", "#8338ec", "#ff9f1c"]
 
 // Mixing board: one fader per feature. A fader above the middle line pushes the prediction up, below pushes it down;
 // the biggest push in this view reaches the end of its track. The output display = starting point + all faders.
-function mixer(b, ex) {
+const MIX = { mid: 172, travel: 92 };
+
+function mixer(b, ex, maxAbs) {
   const u = b.units;
   const entries = Object.entries(ex.groupedPushes);
   const top = biggestUp(ex.groupedPushes);
-  const maxAbs = Math.max(...entries.map(([, v]) => Math.abs(v))) || 1;
-  const W = 680, H = 362, mid = 172, travel = 92, x0 = 40, x1 = 470;
+  const { mid, travel } = MIX;
+  const W = 680, H = 362, x0 = 40, x1 = 470;
   const gap = Math.min(92, (x1 - x0) / entries.length);
   const startX = x0 + ((x1 - x0) - gap * entries.length) / 2;
   const channels = entries.map(([name, v], i) => {
     const x = startX + gap * (i + 0.5);
-    const ky = mid - (v / maxAbs) * travel;
+    const ky = mid - clamp(v / maxAbs, -1, 1) * travel;
     const color = v >= 0 ? "#ff7a45" : "#4da3ff";
     return `
       <circle cx="${x}" cy="56" r="11" fill="${KNOBS[i % KNOBS.length]}"/><line x1="${x}" x2="${x + 6}" y1="56" y2="49" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
@@ -149,7 +194,8 @@ function mixer(b, ex) {
       <line x1="${x - 12}" x2="${x + 12}" y1="${ky}" y2="${ky}" stroke="#2b2d42" stroke-width="2"/>
       <text x="${x}" y="${mid + travel + 30}" text-anchor="middle" style="fill:#fff;font-weight:700;font-size:14px">${NICK[name] || shortLabel(b, name)}</text>
       <text x="${x}" y="${mid + travel + 48}" text-anchor="middle" style="fill:${color};font-weight:700;font-size:14px">${v >= 0 ? "▲" : "▼"} ${signed(v)}</text>
-      ${name === top ? `<text x="${x}" y="${mid + travel + 64}" text-anchor="middle" style="fill:#ffd43b;font-weight:700;font-size:11px">★ biggest push up</text>` : ""}`;
+      ${name === top ? `<text x="${x}" y="${mid + travel + 64}" text-anchor="middle" style="fill:#ffd43b;font-weight:700;font-size:11px">★ biggest push up</text>` : ""}
+      <rect class="fader-hit" data-fader="${name}" x="${x - 24}" y="${mid - travel - 14}" width="48" height="${2 * travel + 28}" fill="transparent"><title>Drag to change ${shortLabel(b, name)}</title></rect>`;
   }).join("");
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mixing board: starting point ${fmt(ex.baseline)} plus one fader per feature gives the prediction ${fmt(ex.prediction)} ${u}">
     <defs><linearGradient id="deck" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#34365a"/><stop offset="1" stop-color="#22233d"/></linearGradient></defs>
@@ -169,7 +215,7 @@ function mixer(b, ex) {
     <rect x="${x1 + 46}" y="190" width="${W - x1 - 66}" height="52" rx="8" fill="#0d0e1c" stroke="#ff006e" stroke-width="2.5" style="filter:drop-shadow(0 0 6px #ff006e)"/>
     <text x="${(x1 + 30 + W) / 2 + 2}" y="224" text-anchor="middle" style="fill:#ff4fa3;font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:24px">${fmt(ex.prediction)}</text>
     <text x="${(x1 + 30 + W) / 2}" y="262" text-anchor="middle" style="fill:#c9cbe8;font-size:13px">${u} = prediction</text>
-    <text x="${(x0 + x1) / 2}" y="${H - 10}" text-anchor="middle" style="fill:#8d90b8;font-size:12px">fader height = push in ${u}</text>
+    <text x="${(x0 + x1) / 2}" y="${H - 10}" text-anchor="middle" style="fill:#8d90b8;font-size:12px">drag a fader ↕ · fader height = push in ${u}</text>
   </svg>`;
 }
 
