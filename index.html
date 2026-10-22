@@ -91,6 +91,7 @@
     .studio { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(240px, 1.15fr); gap: 8px 18px; align-items: center; }
     .studio svg { max-width: 400px; margin: 0 auto; }
     .fader-hit { cursor: grab; touch-action: none; }
+    #lin-mixer { user-select: none; -webkit-user-select: none; }
     .fader-hit:active { cursor: grabbing; }
     .person-panel { background: var(--soft); border-radius: 14px; padding: 12px 14px; margin-top: 12px; }
     .person-panel .inputs { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin: 6px 0 10px; }
@@ -138,6 +139,6 @@
   </div></div>
   <main id="section"></main>
   <footer>Data: CDC/NCHS NHANES public-use files. Models were fitted in advance; every number comes from those models. Models show associations, not causes.</footer>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=9"></script>
 </body>
 </html>

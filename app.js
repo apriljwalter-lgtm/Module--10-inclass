@@ -153,17 +153,21 @@ function renderLinear(b, person) {
     }
     update();
   };
-  const onMove = (e) => { if (drag) fromPointer(e); };
-  const onUp = () => { drag = null; window.removeEventListener("pointermove", onMove); update(); };
-  $("lin-mixer").onpointerdown = (e) => {
+  // The board redraws while dragging, so the pointer is captured by the (permanent) container, not the fader.
+  const board = $("lin-mixer");
+  const end = () => { if (drag) { drag = null; update(); } };
+  board.onpointerdown = (e) => {
     const t = e.target.closest("[data-fader]");
     if (!t) return;
     e.preventDefault();
     drag = { name: t.dataset.fader, scale: lastScale };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp, { once: true });
+    board.setPointerCapture(e.pointerId);
     fromPointer(e);
   };
+  board.onpointermove = (e) => { if (drag) fromPointer(e); };
+  board.onpointerup = end;
+  board.onpointercancel = end;
+  board.onlostpointercapture = end;
   update();
 }
 
