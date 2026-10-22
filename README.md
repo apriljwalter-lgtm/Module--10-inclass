@@ -14,7 +14,7 @@ Submit the link to **this repository** on Canvas. Reviewers open the app link ab
 
 ## Design
 Kept deliberately simple: one main picture per section, each with its own color.
-- **➕ Push & Pull (orange):** a tug-of-war. The flag starts at the average; features that push the prediction up pull right, features that push it down pull left (bigger player = bigger push), and the flag stops at the prediction. Edit the person's values right under it. A waterfall and colored chips give the exact numbers, and one short card separates a coefficient (the same for everyone) from one person's push.
+- **🎚️ Push & Pull (orange):** a mixing board. The output starts at the average; each feature is a fader pushed up or down from the middle line by its push, and the output display = starting point + every fader = the prediction. Edit the person's values right under it and watch the faders move. A waterfall and colored chips give the exact numbers, and one short card separates a coefficient (the same for everyone) from one person's push.
 - **🌳 Wisdom of the Forest (green):** a row of 100 pine trees, each as tall as its guess. A slider counts trees from left to right while the average line moves; partial forests are labelled.
 - **🔨 One Correction at a Time (purple):** a sculptor carving a (PG) David. The statue's progress follows the drop in validation error: it is finished, with sparkles, at the lowest validation error, and scratches appear past it as validation error rises (overfitting). Step through rounds (previous + chip = new) and use the error chart to pick where to stop.
 

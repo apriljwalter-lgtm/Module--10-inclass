@@ -75,21 +75,21 @@ function ticks(lo, hi, count = 5) {
 const tickDigits = (ts) => (ts.length > 1 && ts[1] - ts[0] < 1 ? 1 : 0);
 
 // ============================================================================
-// ➕ Push & Pull (linear regression)
+// 🎚️ Push & Pull (linear regression)
 // ============================================================================
 function renderLinear(b, person) {
   const groups = b.categorical_groups;
   const grouped = new Set(groups.flatMap((g) => g.levels.filter((lv) => lv.column).map((lv) => lv.column)));
   const numeric = b.features.filter((f) => !grouped.has(f.name));
   $("section").innerHTML = `
-    <h2>➕ Push &amp; Pull</h2>
-    <p class="lead">Like a tug-of-war: the flag starts at the average. Features that push the prediction up pull right ▲,
-      features that push it down pull left ▼. Where the flag stops is the prediction.</p>
+    <h2>🎚️ Push &amp; Pull</h2>
+    <p class="lead">Like a sound mixing board: the output starts at the average. Each feature is a fader that pushes the
+      prediction up ▲ or down ▼ from the middle line. Output = starting point + every fader.</p>
     <div class="card">
-      <div id="lin-tug"></div>
+      <div id="lin-mixer"></div>
       <div class="person-panel">
           <h3>🧑 ${person.label} <span class="note" id="lin-who"></span>
-            <span class="note" style="font-weight:400">· change a value and watch that player's pull change</span></h3>
+            <span class="note" style="font-weight:400">· change a value and watch that fader move</span></h3>
           <div class="inputs">
             ${numeric.map((f) => {
               const s = b.feature_stats[f.name];
@@ -110,7 +110,7 @@ function renderLinear(b, person) {
     const ex = m10.linearExplain(b, state.values);
     const edited = Object.keys(person.values).some((k) => Math.abs(person.values[k] - state.values[k]) > 1e-9);
     $("lin-who").textContent = edited ? "(edited)" : `(${person.description})`;
-    $("lin-tug").innerHTML = tugOfWar(b, ex);
+    $("lin-mixer").innerHTML = mixer(b, ex);
     $("lin-main").innerHTML = waterfall(b, ex) + (edited ? `<p class="note">✏️ Edited values: this is no longer a real survey participant.</p>` : "")
       + (!edited && b.id === "fev1" && person.values.age < 18
         ? `<p class="note">⚠️ Measured: ${fmt(person.observed)} ${b.units}. A straight line can't follow lungs growing in childhood and shrinking later, so it predicts far too much for this child.</p>` : "");
@@ -125,57 +125,51 @@ function renderLinear(b, person) {
 }
 
 const NICK = { hba1c: "HbA1c", age: "Age", bmi: "BMI", waist_cm: "Waist", income_poverty_ratio: "Income", sex: "Sex", ethnicity: "Ethnicity" };
-const SKIN = ["#f2c7a5", "#c68642", "#e0ac69", "#8d5524", "#ffdbac", "#a0673c"];
+const KNOBS = ["#ff5a5f", "#ffd23f", "#2ec4b6", "#3a86ff", "#8338ec", "#ff9f1c"];
 
-// Tug-of-war: each feature is a player pulling the flag left (down) or right (up); bigger push = bigger player.
-// The flag starts at the starting point and ends at the prediction.
-function tugOfWar(b, ex) {
+// Mixing board: one fader per feature. A fader above the middle line pushes the prediction up, below pushes it down;
+// the biggest push in this view reaches the end of its track. The output display = starting point + all faders.
+function mixer(b, ex) {
   const u = b.units;
-  const W = 680, H = 300, ground = 226, ropeY = 172;
-  let run = ex.baseline;
-  const pts = [ex.baseline];
-  for (const v of Object.values(ex.groupedPushes)) pts.push((run += v));
-  let lo = Math.min(...pts), hi = Math.max(...pts);
-  const pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad;
-  const cx = (v) => 268 + ((v - lo) / (hi - lo)) * 144;
-  const maxAbs = Math.max(...Object.values(ex.groupedPushes).map(Math.abs)) || 1;
-  const teams = { left: [], right: [] };
-  Object.entries(ex.groupedPushes).forEach(([name, v], i) => teams[v >= 0 ? "right" : "left"].push({ name, v, i }));
-  const players = ["left", "right"].flatMap((side) => {
-    const team = teams[side].sort((a, c) => Math.abs(c.v) - Math.abs(a.v));
-    const gap = Math.min(54, 205 / Math.max(team.length, 1));
-    return team.map((p, j) => {
-      const dir = side === "left" ? -1 : 1;
-      const x = side === "left" ? 236 - j * gap : 444 + j * gap;
-      const s = 0.6 + 0.5 * (Math.abs(p.v) / maxAbs);
-      const color = side === "left" ? "var(--down)" : "var(--up)";
-      const hip = [x, ground - 24 * s], neck = [x + dir * 9 * s, ground - 50 * s], hand = [x - dir * 12, ropeY];
-      return `<g stroke="${color}" stroke-width="${(5 * s).toFixed(1)}" stroke-linecap="round" fill="none">
-          <path d="M${x - 9 * s},${ground} L${hip[0]},${hip[1]} L${x + 9 * s},${ground}"/>
-          <path d="M${hip[0]},${hip[1]} L${neck[0]},${neck[1]}"/>
-          <path d="M${neck[0]},${neck[1] + 6 * s} L${hand[0]},${hand[1]}"/>
-        </g>
-        <circle cx="${neck[0] + dir * 3 * s}" cy="${neck[1] - 9 * s}" r="${(8 * s).toFixed(1)}" fill="${SKIN[p.i % SKIN.length]}"/>
-        <text x="${x}" y="${ground + 19 + (j % 2) * 17}" text-anchor="middle" style="fill:var(--ink);font-weight:600;font-size:14px">${NICK[p.name] || shortLabel(b, p.name)}</text>
-        <text x="${x}" y="${ground + 33 + (j % 2) * 17}" text-anchor="middle" style="fill:${color};font-weight:700;font-size:13px">${signed(p.v)}</text>`;
-    });
+  const entries = Object.entries(ex.groupedPushes);
+  const top = biggestUp(ex.groupedPushes);
+  const maxAbs = Math.max(...entries.map(([, v]) => Math.abs(v))) || 1;
+  const W = 680, H = 362, mid = 172, travel = 92, x0 = 40, x1 = 470;
+  const gap = Math.min(92, (x1 - x0) / entries.length);
+  const startX = x0 + ((x1 - x0) - gap * entries.length) / 2;
+  const channels = entries.map(([name, v], i) => {
+    const x = startX + gap * (i + 0.5);
+    const ky = mid - (v / maxAbs) * travel;
+    const color = v >= 0 ? "#ff7a45" : "#4da3ff";
+    return `
+      <circle cx="${x}" cy="56" r="11" fill="${KNOBS[i % KNOBS.length]}"/><line x1="${x}" x2="${x + 6}" y1="56" y2="49" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      <rect x="${x - 4}" y="${mid - travel - 6}" width="8" height="${2 * travel + 12}" rx="4" fill="#15162a"/>
+      <rect x="${x - 4}" y="${Math.min(ky, mid)}" width="8" height="${Math.abs(ky - mid)}" rx="3" fill="${color}" style="filter:drop-shadow(0 0 4px ${color})"/>
+      <rect x="${x - 19}" y="${ky - 9}" width="38" height="18" rx="5" fill="#e9e9f2" stroke="${color}" stroke-width="3"/>
+      <line x1="${x - 12}" x2="${x + 12}" y1="${ky}" y2="${ky}" stroke="#2b2d42" stroke-width="2"/>
+      <text x="${x}" y="${mid + travel + 30}" text-anchor="middle" style="fill:#fff;font-weight:700;font-size:14px">${NICK[name] || shortLabel(b, name)}</text>
+      <text x="${x}" y="${mid + travel + 48}" text-anchor="middle" style="fill:${color};font-weight:700;font-size:14px">${v >= 0 ? "▲" : "▼"} ${signed(v)}</text>
+      ${name === top ? `<text x="${x}" y="${mid + travel + 64}" text-anchor="middle" style="fill:#ffd43b;font-weight:700;font-size:11px">★ biggest push up</text>` : ""}`;
   }).join("");
-  const fx = cx(ex.prediction), sx = cx(ex.baseline);
-  const tagX = clamp(fx, 262 + 64, 418 - 64);
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Tug-of-war: the flag moves from the starting point ${fmt(ex.baseline)} to the prediction ${fmt(ex.prediction)} ${u}">
-    <rect x="0" y="0" width="${W}" height="${H}" rx="18" fill="var(--soft)"/>
-    <rect x="0" y="${ground}" width="${W}" height="${H - ground}" fill="#ffe2c6"/>
-    <text x="125" y="34" text-anchor="middle" style="fill:var(--down);font-weight:700;font-size:17px">◀ pulls down</text>
-    <text x="555" y="34" text-anchor="middle" style="fill:var(--up);font-weight:700;font-size:17px">pulls up ▶</text>
-    <text x="${sx}" y="${ropeY - 92}" text-anchor="middle" style="fill:var(--ink);font-weight:700;font-size:14px">start ${fmt(ex.baseline)}</text>
-    <line x1="${sx}" x2="${sx}" y1="${ropeY - 86}" y2="${ground}" stroke="var(--ink)" stroke-width="2" stroke-dasharray="4 4"/>
-    <rect x="${tagX - 64}" y="${ropeY - 66}" width="128" height="24" rx="12" fill="#ff006e"/>
-    <text x="${tagX}" y="${ropeY - 49}" text-anchor="middle" style="fill:#fff;font-weight:700;font-size:14px">${fmt(ex.prediction)} ${u}</text>
-    <line x1="${fx}" x2="${fx}" y1="${ropeY - 42}" y2="${ropeY + 30}" stroke="var(--ink)" stroke-width="2.5"/>
-    <line x1="12" x2="${W - 12}" y1="${ropeY}" y2="${ropeY}" stroke="#9c6b3c" stroke-width="5" stroke-linecap="round"/>
-    <path d="M${fx},${ropeY + 4} L${fx + 26},${ropeY + 13} L${fx},${ropeY + 22} Z" fill="#ff006e"/>
-    ${players}
-    <text x="${W / 2}" y="${H - 6}" text-anchor="middle">flag = prediction · bigger player = bigger push (in ${u})</text>
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mixing board: starting point ${fmt(ex.baseline)} plus one fader per feature gives the prediction ${fmt(ex.prediction)} ${u}">
+    <defs><linearGradient id="deck" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#34365a"/><stop offset="1" stop-color="#22233d"/></linearGradient></defs>
+    <rect x="0" y="0" width="${W}" height="${H}" rx="22" fill="url(#deck)"/>
+    <text x="${x0 - 22}" y="${mid - travel + 4}" style="fill:#ff7a45;font-weight:700;font-size:13px">▲</text>
+    <text x="${x0 - 22}" y="${mid + travel + 4}" style="fill:#4da3ff;font-weight:700;font-size:13px">▼</text>
+    <line x1="${x0 - 8}" x2="${x1 + 8}" y1="${mid}" y2="${mid}" stroke="#8d90b8" stroke-width="1.5" stroke-dasharray="5 5"/>
+    <text x="10" y="${mid - 6}" style="fill:#8d90b8;font-size:10px">no push</text>
+    ${channels}
+    <rect x="${x1 + 26}" y="26" width="2" height="${H - 52}" fill="#4a4c74"/>
+    <text x="${(x1 + 30 + W) / 2}" y="46" text-anchor="middle" style="fill:#c9cbe8;font-weight:700;font-size:13px;letter-spacing:2px">START</text>
+    <rect x="${x1 + 46}" y="56" width="${W - x1 - 66}" height="40" rx="8" fill="#0d0e1c"/>
+    <text x="${(x1 + 30 + W) / 2 + 2}" y="83" text-anchor="middle" style="fill:#e9e9f2;font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:20px">${fmt(ex.baseline)}</text>
+    <text x="${(x1 + 30 + W) / 2}" y="126" text-anchor="middle" style="fill:#c9cbe8;font-size:13px">+ every fader</text>
+    <text x="${(x1 + 30 + W) / 2}" y="146" text-anchor="middle" style="fill:#c9cbe8;font-size:20px">↓</text>
+    <text x="${(x1 + 30 + W) / 2}" y="180" text-anchor="middle" style="fill:#ff4fa3;font-weight:700;font-size:13px;letter-spacing:2px">OUTPUT</text>
+    <rect x="${x1 + 46}" y="190" width="${W - x1 - 66}" height="52" rx="8" fill="#0d0e1c" stroke="#ff006e" stroke-width="2.5" style="filter:drop-shadow(0 0 6px #ff006e)"/>
+    <text x="${(x1 + 30 + W) / 2 + 2}" y="224" text-anchor="middle" style="fill:#ff4fa3;font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:24px">${fmt(ex.prediction)}</text>
+    <text x="${(x1 + 30 + W) / 2}" y="262" text-anchor="middle" style="fill:#c9cbe8;font-size:13px">${u} = prediction</text>
+    <text x="${(x0 + x1) / 2}" y="${H - 10}" text-anchor="middle" style="fill:#8d90b8;font-size:12px">fader height = push in ${u}</text>
   </svg>`;
 }
 
