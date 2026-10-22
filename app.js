@@ -83,28 +83,34 @@ function renderLinear(b, person) {
   const numeric = b.features.filter((f) => !grouped.has(f.name));
   $("section").innerHTML = `
     <h2>➕ Push &amp; Pull</h2>
-    <p class="lead">Start at the average. Each feature then pushes the prediction up ▲ or down ▼.</p>
-    <div class="card" id="lin-main"></div>
-    <div class="card soft" id="lin-coef"></div>
-    <details class="card">
-      <summary>✏️ Change this person's values</summary>
-      <div class="inputs">
-        ${numeric.map((f) => {
-          const s = b.feature_stats[f.name];
-          return `<label>${shortLabel(b, f.name)} (${f.units})<input type="number" data-f="${f.name}" value="${state.values[f.name]}"
-            min="${s.min}" max="${s.max}" step="any"></label>`;
-        }).join("")}
-        ${groups.map((g) => `<label>${g.label} <span style="font-weight:400">(reference group: ${g.reference})</span><select data-g="${g.name}">${g.levels
-          .map((lv) => `<option ${lv.label === m10.categoryOf(b, g.name, state.values) ? "selected" : ""}>${lv.label}</option>`)
-          .join("")}</select></label>`).join("")}
+    <p class="lead">Like a tug-of-war: the flag starts at the average. Features that push the prediction up pull right ▲,
+      features that push it down pull left ▼. Where the flag stops is the prediction.</p>
+    <div class="card">
+      <div id="lin-tug"></div>
+      <div class="person-panel">
+          <h3>🧑 ${person.label} <span class="note" id="lin-who"></span>
+            <span class="note" style="font-weight:400">· change a value and watch that player's pull change</span></h3>
+          <div class="inputs">
+            ${numeric.map((f) => {
+              const s = b.feature_stats[f.name];
+              return `<label>${shortLabel(b, f.name)} (${f.units})<input type="number" data-f="${f.name}" value="${state.values[f.name]}"
+                min="${s.min}" max="${s.max}" step="any"></label>`;
+            }).join("")}
+            ${groups.map((g) => `<label>${g.label} <span style="font-weight:400">(reference group: ${g.reference})</span><select data-g="${g.name}">${g.levels
+              .map((lv) => `<option ${lv.label === m10.categoryOf(b, g.name, state.values) ? "selected" : ""}>${lv.label}</option>`)
+              .join("")}</select></label>`).join("")}
+          </div>
+          <button id="lin-reset">Reset</button>
       </div>
-      <p class="note">Pushes are measured from the training average, which mixes all groups, so even the reference group gets a small push.</p>
-      <button id="lin-reset">Reset to ${person.label}</button>
-    </details>`;
+    </div>
+    <div class="card"><h3>🧾 The exact numbers</h3><div id="lin-main"></div></div>
+    <div class="card soft" id="lin-coef"></div>`;
 
   const update = () => {
     const ex = m10.linearExplain(b, state.values);
     const edited = Object.keys(person.values).some((k) => Math.abs(person.values[k] - state.values[k]) > 1e-9);
+    $("lin-who").textContent = edited ? "(edited)" : `(${person.description})`;
+    $("lin-tug").innerHTML = tugOfWar(b, ex);
     $("lin-main").innerHTML = waterfall(b, ex) + (edited ? `<p class="note">✏️ Edited values: this is no longer a real survey participant.</p>` : "")
       + (!edited && b.id === "fev1" && person.values.age < 18
         ? `<p class="note">⚠️ Measured: ${fmt(person.observed)} ${b.units}. A straight line can't follow lungs growing in childhood and shrinking later, so it predicts far too much for this child.</p>` : "");
@@ -116,6 +122,61 @@ function renderLinear(b, person) {
     (el.onchange = () => { Object.assign(state.values, m10.categoryInputs(b, el.dataset.g, el.value)); update(); }));
   $("lin-reset").onclick = () => { state.values = null; render(); };
   update();
+}
+
+const NICK = { hba1c: "HbA1c", age: "Age", bmi: "BMI", waist_cm: "Waist", income_poverty_ratio: "Income", sex: "Sex", ethnicity: "Ethnicity" };
+const SKIN = ["#f2c7a5", "#c68642", "#e0ac69", "#8d5524", "#ffdbac", "#a0673c"];
+
+// Tug-of-war: each feature is a player pulling the flag left (down) or right (up); bigger push = bigger player.
+// The flag starts at the starting point and ends at the prediction.
+function tugOfWar(b, ex) {
+  const u = b.units;
+  const W = 680, H = 300, ground = 226, ropeY = 172;
+  let run = ex.baseline;
+  const pts = [ex.baseline];
+  for (const v of Object.values(ex.groupedPushes)) pts.push((run += v));
+  let lo = Math.min(...pts), hi = Math.max(...pts);
+  const pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad;
+  const cx = (v) => 268 + ((v - lo) / (hi - lo)) * 144;
+  const maxAbs = Math.max(...Object.values(ex.groupedPushes).map(Math.abs)) || 1;
+  const teams = { left: [], right: [] };
+  Object.entries(ex.groupedPushes).forEach(([name, v], i) => teams[v >= 0 ? "right" : "left"].push({ name, v, i }));
+  const players = ["left", "right"].flatMap((side) => {
+    const team = teams[side].sort((a, c) => Math.abs(c.v) - Math.abs(a.v));
+    const gap = Math.min(54, 205 / Math.max(team.length, 1));
+    return team.map((p, j) => {
+      const dir = side === "left" ? -1 : 1;
+      const x = side === "left" ? 236 - j * gap : 444 + j * gap;
+      const s = 0.6 + 0.5 * (Math.abs(p.v) / maxAbs);
+      const color = side === "left" ? "var(--down)" : "var(--up)";
+      const hip = [x, ground - 24 * s], neck = [x + dir * 9 * s, ground - 50 * s], hand = [x - dir * 12, ropeY];
+      return `<g stroke="${color}" stroke-width="${(5 * s).toFixed(1)}" stroke-linecap="round" fill="none">
+          <path d="M${x - 9 * s},${ground} L${hip[0]},${hip[1]} L${x + 9 * s},${ground}"/>
+          <path d="M${hip[0]},${hip[1]} L${neck[0]},${neck[1]}"/>
+          <path d="M${neck[0]},${neck[1] + 6 * s} L${hand[0]},${hand[1]}"/>
+        </g>
+        <circle cx="${neck[0] + dir * 3 * s}" cy="${neck[1] - 9 * s}" r="${(8 * s).toFixed(1)}" fill="${SKIN[p.i % SKIN.length]}"/>
+        <text x="${x}" y="${ground + 19 + (j % 2) * 17}" text-anchor="middle" style="fill:var(--ink);font-weight:600;font-size:14px">${NICK[p.name] || shortLabel(b, p.name)}</text>
+        <text x="${x}" y="${ground + 33 + (j % 2) * 17}" text-anchor="middle" style="fill:${color};font-weight:700;font-size:13px">${signed(p.v)}</text>`;
+    });
+  }).join("");
+  const fx = cx(ex.prediction), sx = cx(ex.baseline);
+  const tagX = clamp(fx, 262 + 64, 418 - 64);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Tug-of-war: the flag moves from the starting point ${fmt(ex.baseline)} to the prediction ${fmt(ex.prediction)} ${u}">
+    <rect x="0" y="0" width="${W}" height="${H}" rx="18" fill="var(--soft)"/>
+    <rect x="0" y="${ground}" width="${W}" height="${H - ground}" fill="#ffe2c6"/>
+    <text x="125" y="34" text-anchor="middle" style="fill:var(--down);font-weight:700;font-size:17px">◀ pulls down</text>
+    <text x="555" y="34" text-anchor="middle" style="fill:var(--up);font-weight:700;font-size:17px">pulls up ▶</text>
+    <text x="${sx}" y="${ropeY - 92}" text-anchor="middle" style="fill:var(--ink);font-weight:700;font-size:14px">start ${fmt(ex.baseline)}</text>
+    <line x1="${sx}" x2="${sx}" y1="${ropeY - 86}" y2="${ground}" stroke="var(--ink)" stroke-width="2" stroke-dasharray="4 4"/>
+    <rect x="${tagX - 64}" y="${ropeY - 66}" width="128" height="24" rx="12" fill="#ff006e"/>
+    <text x="${tagX}" y="${ropeY - 49}" text-anchor="middle" style="fill:#fff;font-weight:700;font-size:14px">${fmt(ex.prediction)} ${u}</text>
+    <line x1="${fx}" x2="${fx}" y1="${ropeY - 42}" y2="${ropeY + 30}" stroke="var(--ink)" stroke-width="2.5"/>
+    <line x1="12" x2="${W - 12}" y1="${ropeY}" y2="${ropeY}" stroke="#9c6b3c" stroke-width="5" stroke-linecap="round"/>
+    <path d="M${fx},${ropeY + 4} L${fx + 26},${ropeY + 13} L${fx},${ropeY + 22} Z" fill="#ff006e"/>
+    ${players}
+    <text x="${W / 2}" y="${H - 6}" text-anchor="middle">flag = prediction · bigger player = bigger push (in ${u})</text>
+  </svg>`;
 }
 
 function biggestUp(pushes) {
@@ -384,25 +445,53 @@ const CRACKS = (() => {
   });
 })();
 
+// A PG take on Michelangelo's David: contrapposto stance, sling over the raised shoulder, a draped cloth at the hips.
+// `detail` (0–1) fades in the carved details (face, curls, muscles, folds) as the statue nears completion.
+const CURLS = (() => {
+  const out = [];
+  for (let a = 196; a <= 344; a += 15) out.push([200 + 15.5 * Math.cos((a * Math.PI) / 180), 46 + 15 * Math.sin((a * Math.PI) / 180), 4.4]);
+  for (let a = 215; a <= 325; a += 22) out.push([200 + 8 * Math.cos((a * Math.PI) / 180), 41 + 8 * Math.sin((a * Math.PI) / 180), 4]);
+  out.push([185, 52, 3.6], [215, 52, 3.6]);
+  return out;
+})();
+
 function statue(detail) {
+  const dt = detail.toFixed(2);
   return `
-    <g stroke="#b3ab9e" stroke-width="1.5" fill="url(#marble)" stroke-linejoin="round">
-      <path d="M186,212 L184,262 L197,262 L198,212 Z"/><path d="M203,212 L207,262 L219,262 L216,212 Z"/>
-      <ellipse cx="190" cy="264" rx="9" ry="4"/><ellipse cx="213" cy="264" rx="9" ry="4"/>
-      <path d="M222,94 Q234,120 231,164 L224,164 Q226,124 216,100 Z"/><circle cx="228" cy="168" r="5"/>
-      <path d="M180,160 L220,160 L227,216 L173,216 Z"/>
-      <path d="M176,94 Q200,86 224,94 L221,162 L179,162 Z"/>
-      <path d="M178,94 Q164,108 166,126 L174,126 Q172,110 184,100 Z"/><path d="M166,122 L172,128 L190,106 L184,100 Z"/>
-      <circle cx="188" cy="101" r="5"/>
-      <rect x="194" y="76" width="12" height="14" rx="3"/>
-      <ellipse cx="200" cy="62" rx="14" ry="17"/>
-      ${[[188, 50], [195, 45], [203, 44], [210, 48], [214, 56], [186, 58]].map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="5.5"/>`).join("")}
+    <g filter="url(#statueShadow)">
+    <g stroke="#a99f91" stroke-width="0.9" fill="url(#marbleR)" stroke-linejoin="round">
+      <path d="M182,198 C180,214 182,226 184,236 C185,244 184,252 184,259 L198,259 C198,250 199,242 199,234 C200,224 201,212 200,200 Z"/>
+      <path d="M204,200 C204,214 206,222 210,230 C212,240 214,250 216,259 L229,259 C228,250 226,240 223,230 C222,220 222,208 222,198 Z"/>
+      <ellipse cx="190" cy="261" rx="10" ry="4"/><ellipse cx="223" cy="261" rx="10" ry="4"/>
+      <path d="M193,60 L193,72 Q200,77 207,72 L207,60 Z"/>
+      <path d="M193,72 C184,74 174,76 171,82 C168,90 170,104 174,116 C176,128 177,140 180,150 C181,158 180,166 180,172
+        L222,172 C222,164 221,156 222,148 C224,138 226,124 227,114 C230,102 232,90 229,82 C226,76 216,74 207,72 Z"/>
+      <path d="M174,80 C164,84 160,100 161,114 C162,126 160,140 161,152 C162,162 163,172 165,180 C168,186 175,186 175,178
+        C174,168 172,156 172,146 C173,134 175,122 175,110 C176,100 178,90 178,84 Z"/>
+      <ellipse cx="169" cy="183" rx="6" ry="7.5"/>
+      <path d="M226,80 C236,84 242,98 241,112 C240,120 236,124 232,122 C230,110 228,100 222,90 Z"/>
+      <path d="M241,114 C238,104 230,94 224,88 C221,86 217,90 219,94 C225,100 231,110 233,121 Z"/>
+      <ellipse cx="219" cy="88" rx="6" ry="5"/>
+      <path d="M178,160 C190,156 210,156 224,158 C226,170 228,186 226,200 C220,206 212,203 206,206 C200,209 194,204 188,207
+        C182,209 177,204 174,200 C174,186 176,172 178,160 Z" fill="url(#cloth)"/>
+      <path d="M200,30 C211,30 216,38 215,48 C214,56 210,62 200,64 C190,62 186,56 185,48 C184,38 189,30 200,30 Z"/>
+      ${CURLS.map(([x, y, r]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}"/>`).join("")}
     </g>
-    <g stroke="#9c9386" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="${detail.toFixed(2)}">
-      <path d="M178,97 L221,152" stroke="#d3cbbf" stroke-width="6"/>
-      <path d="M193,60 h4 M203,60 h4 M200,62 v6 M196,72 q4,2 8,0 M191,114 q9,4 18,0"/>
-      <path d="M186,170 L183,214 M194,168 L193,214 M206,168 L208,214 M214,168 L219,214"/>
-      <path d="M188,101 Q166,140 228,166" stroke="#a58f6a" stroke-width="1.6"/>
+    </g>
+    <g fill="none" stroke-linecap="round" opacity="${dt}">
+      <path d="M219,88 C210,98 201,120 197,150" stroke="#bdb3a5" stroke-width="2.4"/>
+      <g stroke="#b4aa9c" stroke-width="1">
+        <path d="M191,43 q4,-2 8,0 M201,43 q4,-2 8,0 M200,45 L198,53 q2,1.6 4,0 M196,57.5 q4,1.6 8,0 M189,55 q11,10 22,0"/>
+        <path d="M180,104 Q190,111 199,104 M201,104 Q210,111 220,104 M200,96 L200,150 M192,122 q8,3 16,0 M192,134 q8,3 16,0
+          M176,84 q6,8 4,18 M226,84 q-6,8 -4,18 M195,74 q-6,4 -14,5 M205,74 q6,4 14,5"/>
+        <path d="M184,166 C186,180 184,192 186,204 M196,164 C198,180 196,194 197,206 M208,164 C210,178 208,192 210,205 M218,162 C220,176 220,188 221,200"/>
+        <path d="M185,234 q7,3 13,0 M211,230 q6,3 12,0 M165,130 q5,2 9,0"/>
+      </g>
+      <ellipse cx="200" cy="146" rx="1.4" ry="1.8" fill="#b4aa9c" stroke="none"/>
+      <path d="M192,46 q3,-2 6,0 q-3,1.5 -6,0 Z M202,46 q3,-2 6,0 q-3,1.5 -6,0 Z" fill="#b9b0a3" stroke="none"/>
+      <ellipse cx="180" cy="166" rx="4" ry="3" fill="#ddd6ca" stroke="#b4aa9c" stroke-width="0.8"/>
+      ${CURLS.map(([x, y, r]) => `<path d="M${(x - r * 0.5).toFixed(1)},${(y + r * 0.1).toFixed(1)} q${(r * 0.5).toFixed(1)},${(-r * 0.7).toFixed(1)} ${r.toFixed(1)},0" stroke="#b4aa9c" stroke-width="0.8"/>`).join("")}
+      <g stroke="#e3ddd3" stroke-width="0.7" opacity="0.8"><path d="M182,92 q10,20 4,44 M214,110 q-6,24 2,40 M188,214 q4,16 2,30"/></g>
     </g>`;
 }
 
@@ -424,7 +513,11 @@ function sculpt(b, k) {
   const sparkles = done ? [[160, 40], [244, 70], [168, 190], [240, 220], [200, 18]].map(([x, y], i) =>
     `<text class="sparkle" x="${x}" y="${y}" style="font-size:18px;animation-delay:${i * 0.2}s">✨</text>`).join("") : "";
   const svg = `<svg viewBox="30 6 250 292" role="img" aria-label="A sculptor carving a statue; the statue is ${Math.round(progress * 100)}% finished">
-    <defs><linearGradient id="marble" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#fdfcf9"/><stop offset="1" stop-color="#d9d3c9"/></linearGradient></defs>
+    <defs>
+      <radialGradient id="marbleR" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#eee9e1"/><stop offset="1" stop-color="#cbc3b6"/></radialGradient>
+      <linearGradient id="cloth" x1="0" x2="1" y1="0" y2="0.3"><stop offset="0" stop-color="#f6f2ec"/><stop offset="0.5" stop-color="#e4ddd2"/><stop offset="1" stop-color="#cfc6b9"/></linearGradient>
+      <filter id="statueShadow" x="-20%" y="-10%" width="140%" height="125%"><feDropShadow dx="3" dy="3" stdDeviation="2.5" flood-color="#5a4f7a" flood-opacity="0.25"/></filter>
+    </defs>
     <rect x="30" y="6" width="250" height="292" rx="18" fill="var(--soft)"/>
     <rect x="30" y="276" width="250" height="22" fill="#ddd3f6"/>
     <ellipse cx="200" cy="284" rx="${(14 + 62 * progress).toFixed(1)}" ry="${(3 + 5 * progress).toFixed(1)}" fill="#e3ddd2"/>
