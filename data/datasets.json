@@ -1,0 +1,234 @@
+{
+  "glucose": {
+    "id": "glucose",
+    "name": "NHANES: HbA1c → fasting glucose",
+    "source": "NHANES 2017-2018 (CDC), adults in the fasting subsample",
+    "citation": "Centers for Disease Control and Prevention, National Center for Health Statistics. National Health and Nutrition Examination Survey 2017-2018.",
+    "url": "https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?BeginYear=2017",
+    "target": "fasting_glucose",
+    "target_label": "Fasting glucose",
+    "units": "mg/dL",
+    "features": [
+      {
+        "name": "hba1c",
+        "label": "HbA1c (3-month average blood sugar)",
+        "units": "%",
+        "binary": false
+      },
+      {
+        "name": "age",
+        "label": "Age",
+        "units": "years",
+        "binary": false
+      },
+      {
+        "name": "bmi",
+        "label": "Body mass index",
+        "units": "kg/m²",
+        "binary": false
+      },
+      {
+        "name": "waist_cm",
+        "label": "Waist circumference",
+        "units": "cm",
+        "binary": false
+      },
+      {
+        "name": "female",
+        "label": "Female (1 = female, 0 = male)",
+        "units": "0/1",
+        "binary": true
+      }
+    ],
+    "categorical_groups": [
+      {
+        "name": "sex",
+        "label": "Sex",
+        "levels": [
+          {
+            "label": "Male",
+            "column": null
+          },
+          {
+            "label": "Female",
+            "column": "female"
+          }
+        ],
+        "reference": "Male"
+      }
+    ]
+  },
+  "sbp": {
+    "id": "sbp",
+    "name": "NHANES: systolic blood pressure",
+    "source": "NHANES 2017-2018 (CDC), adults with complete measurements",
+    "citation": "Centers for Disease Control and Prevention, National Center for Health Statistics. National Health and Nutrition Examination Survey 2017-2018.",
+    "url": "https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?BeginYear=2017",
+    "target": "systolic_bp",
+    "target_label": "Systolic blood pressure (mean of up to 3 readings)",
+    "units": "mmHg",
+    "features": [
+      {
+        "name": "age",
+        "label": "Age",
+        "units": "years",
+        "binary": false
+      },
+      {
+        "name": "bmi",
+        "label": "Body mass index",
+        "units": "kg/m²",
+        "binary": false
+      },
+      {
+        "name": "waist_cm",
+        "label": "Waist circumference",
+        "units": "cm",
+        "binary": false
+      },
+      {
+        "name": "female",
+        "label": "Female (1 = female, 0 = male)",
+        "units": "0/1",
+        "binary": true
+      },
+      {
+        "name": "income_poverty_ratio",
+        "label": "Family income ÷ poverty line (capped at 5)",
+        "units": "ratio",
+        "binary": false
+      },
+      {
+        "name": "eth_mexican_american",
+        "label": "Race/ethnicity: Mexican American (vs Non-Hispanic White)",
+        "units": "0/1",
+        "binary": true
+      },
+      {
+        "name": "eth_nh_asian",
+        "label": "Race/ethnicity: Non-Hispanic Asian (vs Non-Hispanic White)",
+        "units": "0/1",
+        "binary": true
+      },
+      {
+        "name": "eth_nh_black",
+        "label": "Race/ethnicity: Non-Hispanic Black (vs Non-Hispanic White)",
+        "units": "0/1",
+        "binary": true
+      },
+      {
+        "name": "eth_other_multiracial",
+        "label": "Race/ethnicity: Other / multiracial (vs Non-Hispanic White)",
+        "units": "0/1",
+        "binary": true
+      },
+      {
+        "name": "eth_other_hispanic",
+        "label": "Race/ethnicity: Other Hispanic (vs Non-Hispanic White)",
+        "units": "0/1",
+        "binary": true
+      }
+    ],
+    "categorical_groups": [
+      {
+        "name": "sex",
+        "label": "Sex",
+        "levels": [
+          {
+            "label": "Male",
+            "column": null
+          },
+          {
+            "label": "Female",
+            "column": "female"
+          }
+        ],
+        "reference": "Male"
+      },
+      {
+        "name": "ethnicity",
+        "label": "Race / ethnicity",
+        "levels": [
+          {
+            "label": "Non-Hispanic White",
+            "column": null
+          },
+          {
+            "label": "Mexican American",
+            "column": "eth_mexican_american"
+          },
+          {
+            "label": "Other Hispanic",
+            "column": "eth_other_hispanic"
+          },
+          {
+            "label": "Non-Hispanic Black",
+            "column": "eth_nh_black"
+          },
+          {
+            "label": "Non-Hispanic Asian",
+            "column": "eth_nh_asian"
+          },
+          {
+            "label": "Other / multiracial",
+            "column": "eth_other_multiracial"
+          }
+        ],
+        "reference": "Non-Hispanic White"
+      }
+    ]
+  },
+  "fev1": {
+    "id": "fev1",
+    "name": "NHANES: lung function (FEV₁)",
+    "source": "NHANES 2011-2012 (CDC), ages 6-79 with complete spirometry. Height is left out on purpose, so the age curve has to be learned",
+    "citation": "Centers for Disease Control and Prevention, National Center for Health Statistics. National Health and Nutrition Examination Survey 2011-2012.",
+    "url": "https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?BeginYear=2011",
+    "target": "fev1",
+    "target_label": "FEV₁: air blown out in the first second",
+    "units": "mL",
+    "features": [
+      {
+        "name": "age",
+        "label": "Age",
+        "units": "years",
+        "binary": false
+      },
+      {
+        "name": "female",
+        "label": "Female (1 = female, 0 = male)",
+        "units": "0/1",
+        "binary": true
+      },
+      {
+        "name": "bmi",
+        "label": "Body mass index",
+        "units": "kg/m²",
+        "binary": false
+      },
+      {
+        "name": "income_poverty_ratio",
+        "label": "Family income ÷ poverty line (capped at 5)",
+        "units": "ratio",
+        "binary": false
+      }
+    ],
+    "categorical_groups": [
+      {
+        "name": "sex",
+        "label": "Sex",
+        "levels": [
+          {
+            "label": "Male",
+            "column": null
+          },
+          {
+            "label": "Female",
+            "column": "female"
+          }
+        ],
+        "reference": "Male"
+      }
+    ]
+  }
+}

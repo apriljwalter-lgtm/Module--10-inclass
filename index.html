@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Explain the Model</title>
+  <style>
+    :root { --bg: #ffffff; --fg: #1d1d1f; --muted: #6b6b70; --line: #d9d9de; --accent: #2f6fde; --up: #c2410c; --down: #1d6fb8; --card: #f6f6f8; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #151517; --fg: #ececef; --muted: #a0a0a8; --line: #36363c; --accent: #7aa7ff; --up: #fb923c; --down: #60a5fa; --card: #1f1f23; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+    header, main { max-width: 900px; margin: 0 auto; padding: 16px; }
+    nav a { margin-right: 16px; color: var(--accent); text-decoration: none; }
+    nav a.active { font-weight: 700; text-decoration: underline; }
+    .controls { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+    select, input { font: inherit; padding: 4px 6px; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    td, th { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: left; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .up { color: var(--up); } .down { color: var(--down); }
+    .note { color: var(--muted); font-size: 14px; }
+    .starter { background: var(--card); border: 1px dashed var(--line); padding: 8px 12px; border-radius: 8px; }
+    .inputs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+    .inputs label { display: flex; flex-direction: column; font-size: 14px; }
+    svg { width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Explain the Model</h1>
+    <nav>
+      <a href="#linear">Push &amp; Pull</a>
+      <a href="#forest">Wisdom of the Forest</a>
+      <a href="#boosting">One Correction at a Time</a>
+    </nav>
+    <div class="controls">
+      <label>Dataset <select id="dataset"></select></label>
+      <label>Example person <select id="person"></select></label>
+    </div>
+  </header>
+  <main id="section"></main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
