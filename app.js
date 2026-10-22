@@ -26,6 +26,8 @@ async function setup() {
   const q = new URLSearchParams(location.search);
   if (m10.DATASETS.includes(q.get("ds"))) state.key = q.get("ds");
   if (/^P[1-5]$/.test(q.get("p") || "")) state.person = q.get("p");
+  if (/^\d+$/.test(q.get("r") || "")) state.round = Number(q.get("r"));
+  if (/^\d+$/.test(q.get("n") || "")) state.nTrees = Number(q.get("n"));
   $("dataset").innerHTML = m10.DATASETS.map((k) => `<option value="${k}">${LABELS[k]}</option>`).join("");
   $("dataset").onchange = async (e) => { state.key = e.target.value; await loadPeople(); render(); };
   $("person").onchange = (e) => { state.person = e.target.value; state.values = null; render(); };
@@ -181,7 +183,7 @@ function coefficientNote(b, ex) {
 // ============================================================================
 // 🌳 Wisdom of the Forest (random forest)
 // ============================================================================
-const CANDY = ["#ff5a5f", "#ff9f1c", "#ffd23f", "#2ec4b6", "#3a86ff", "#8338ec", "#ff006e", "#06d6a0"];
+const GREENS = ["#1fa65a", "#2ecc71", "#138d62", "#4cc38a", "#0f7a4a", "#5bd06f", "#20b38a", "#3a9d3a"];
 
 function renderForest(b, person) {
   const rf = b.forest;
@@ -191,9 +193,9 @@ function renderForest(b, person) {
   const n = clamp(Number(state.nTrees || 10), 1, N);
   $("section").innerHTML = `
     <h2>🌳 Wisdom of the Forest</h2>
-    <p class="lead">Like a crowd guessing the jellybeans in a jar: ${N} trees each make a guess, and the forest takes the average.</p>
+    <p class="lead">Ask ${N} slightly different trees for a guess, then take the average. That's the forest's prediction.</p>
     <div class="card">
-      <h3>🫙 Each bean is one tree's guess for ${person.label}</h3>
+      <h3>🌲 ${N} trees guess for ${person.label}</h3>
       <label><b>Trees counted: <span id="ntrees-value">${n}</span> of ${N}</b>
         <input id="ntrees" type="range" min="1" max="${N}" value="${n}" aria-label="Number of trees averaged"></label>
       <div class="row">${[1, 5, 20, N].map((k) => `<button data-n="${k}">${k === N ? `All ${N}` : k === 1 ? "1 tree" : `${k} trees`}</button>`).join("")}</div>
@@ -218,47 +220,57 @@ function renderForest(b, person) {
     $("ntrees-value").textContent = k;
     $("ntrees").value = k;
     document.querySelectorAll("[data-n]").forEach((el) => el.classList.toggle("on", Number(el.dataset.n) === k));
-    $("forest-results").innerHTML = jar(b, person, trees, k);
+    $("forest-results").innerHTML = forestScene(b, person, trees, k);
   };
   $("ntrees").oninput = (e) => update(Number(e.target.value));
   document.querySelectorAll("[data-n]").forEach((el) => (el.onclick = () => update(Number(el.dataset.n))));
   update(n);
 }
 
-// The jar: one bean per tree, stacked by value; beans not counted yet are faded.
-function jar(b, person, trees, k) {
+// The forest: one pine tree per model tree, in the fixed tree order, each as tall as its guess.
+// Trees not counted yet are pale; the bold line is the average of the counted trees.
+function forestScene(b, person, trees, k) {
   const u = b.units;
   const N = trees.length;
   const partial = m10.runningAverage(trees, k);
   const full = b.forest.people[person.id].prediction;
-  let lo = Math.min(...trees), hi = Math.max(...trees);
-  const pad = (hi - lo) * 0.05 || 1;
-  lo -= pad; hi += pad;
-  const W = chartW(), L = 10, R = 10, beanW = 14;
-  const x = (v) => L + ((v - lo) / (hi - lo)) * (W - L - R);
-  const cols = {};
-  const beans = trees.map((t, i) => {
-    const c = Math.round(x(t) / beanW);
-    cols[c] = (cols[c] || 0) + 1;
-    return { i, t, cx: c * beanW, level: cols[c] - 1 };
-  });
-  const maxStack = Math.max(...Object.values(cols));
-  const beanH = 10, top = 26, base = top + maxStack * beanH + 6, H = base + 36;
-  const y = (lvl) => base - 7 - lvl * beanH;
-  const ts = ticks(lo, hi, 5), d = tickDigits(ts);
+  const lo = Math.min(...trees), hi = Math.max(...trees), span = hi - lo || 1;
+  const yMin = Math.max(0, lo - span * 0.35), yMax = hi + span * 0.06;
+  const W = chartW(), H = 300, L = 50, R = 12, T = 30, ground = H - 40;
+  const y = (v) => ground - ((v - yMin) / (yMax - yMin)) * (ground - T);
+  const slot = (W - L - R) / N;
+  const w = clamp(slot * 2.4, 8, 22);
+  const pines = trees.map((t, i) => {
+    const cx = L + slot * (i + 0.5), top = y(t), h = ground - top, trunk = h * 0.14, on = i < k;
+    const green = GREENS[i % GREENS.length];
+    return `<g opacity="${on ? 1 : 0.35}"><title>Tree ${i + 1}: ${fmt(t)} ${u}</title>
+      <rect x="${(cx - 1.5).toFixed(1)}" y="${(ground - trunk).toFixed(1)}" width="3" height="${trunk.toFixed(1)}" fill="${on ? "#8b5a2b" : "#c9bba8"}"/>
+      <polygon points="${(cx - w * 0.5).toFixed(1)},${(ground - trunk).toFixed(1)} ${(cx + w * 0.5).toFixed(1)},${(ground - trunk).toFixed(1)} ${cx.toFixed(1)},${(top + h * 0.3).toFixed(1)}" fill="${on ? green : "#cfe3d5"}"/>
+      <polygon points="${(cx - w * 0.36).toFixed(1)},${(top + h * 0.5).toFixed(1)} ${(cx + w * 0.36).toFixed(1)},${(top + h * 0.5).toFixed(1)} ${cx.toFixed(1)},${top.toFixed(1)}" fill="${on ? green : "#cfe3d5"}"/>
+    </g>`;
+  }).join("");
+  const yt = ticks(yMin, yMax, 4).filter((t) => t >= yMin), d = tickDigits(yt);
+  const lineY = y(partial);
   const runs = trees.map((_, i) => m10.runningAverage(trees, i + 1));
   const lateDrift = Math.max(...runs.slice(49)) - Math.min(...runs.slice(49));
   const label = k < N ? `Partial forest (${k} of ${N} trees)` : `Whole forest (all ${N} trees)`;
   return `
-    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${N} tree guesses as jellybeans; ${label} average ${fmt(partial)} ${u}">
-      <line x1="${L}" x2="${W - R}" y1="${base}" y2="${base}" stroke="#d8d0c4" stroke-width="2"/>
-      ${ts.map((t) => `<text x="${x(t)}" y="${base + 18}" text-anchor="middle">${fmt(t, d)}</text>`).join("")}
-      <text x="${W - R}" y="${base + 34}" text-anchor="end">tree guess (${u})</text>
-      ${beans.map((bn) => `<ellipse cx="${bn.cx}" cy="${y(bn.level)}" rx="6.5" ry="4.6" transform="rotate(-20 ${bn.cx} ${y(bn.level)})"
-        fill="${CANDY[bn.i % CANDY.length]}" opacity="${bn.i < k ? 1 : 0.13}"><title>Tree ${bn.i + 1}: ${fmt(bn.t)} ${u}</title></ellipse>`).join("")}
-      <line x1="${x(partial)}" x2="${x(partial)}" y1="${top - 14}" y2="${base}" stroke="var(--c)" stroke-width="4" stroke-linecap="round"/>
-      <text x="${x(partial)}" y="${top - 18}" text-anchor="${x(partial) > W - 90 ? "end" : x(partial) < 90 ? "start" : "middle"}" style="fill:var(--c);font-weight:700">average ${fmt(partial)}</text>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${N} trees, each as tall as its guess; ${label} average ${fmt(partial)} ${u}">
+      <rect x="${L}" y="${T - 20}" width="${W - L - R}" height="${ground - T + 20}" rx="10" fill="#eefaf3"/>
+      ${yt.map((t) => `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" stroke="#d6eadc"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${fmt(t, d)}</text>`).join("")}
+      ${pines}
+      <rect x="${L - 4}" y="${ground}" width="${W - L - R + 8}" height="8" rx="4" fill="#9ed8a8"/>
+      <text x="${L + slot / 2}" y="${ground + 24}" text-anchor="start">tree 1</text>
+      <text x="${W - R}" y="${ground + 24}" text-anchor="end">tree ${N}</text>
+      <text x="${(L + W - R) / 2}" y="${ground + 24}" text-anchor="middle">each tree is as tall as its guess (${u})</text>
+      ${k < N ? `<line x1="${L}" x2="${W - R}" y1="${y(full)}" y2="${y(full)}" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="3 4" opacity="0.5"/>` : ""}
+      <line x1="${L}" x2="${W - R}" y1="${lineY}" y2="${lineY}" stroke="#ff006e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="${W - R - 132}" y="${lineY - 26}" width="132" height="20" rx="10" fill="#ff006e"/>
+      <text x="${W - R - 66}" y="${lineY - 12}" text-anchor="middle" style="fill:#fff;font-weight:700">average ${fmt(partial)}</text>
+      <text x="${L + slot / 2}" y="${y(trees[0]) - 6}" text-anchor="middle" style="fill:var(--ink);font-weight:700">1</text>
+      <text x="12" y="${(T + ground) / 2}" text-anchor="middle" transform="rotate(-90 12 ${(T + ground) / 2})">guess (${u})</text>
     </svg>
+    <p class="note">Bold pink line = average of the trees counted so far${k < N ? "; dotted line = average of all 100" : ""}. Pale trees aren't counted yet.</p>
     <div class="tiles">
       <div class="tile"><small>${label}</small><b>${fmt(partial)} ${u}</b></div>
       <div class="tile"><small>Forest prediction (all ${N} trees)</small><b>${fmt(full)} ${u}</b></div>
@@ -287,6 +299,10 @@ function renderBoosting(b, person) {
         <input id="round" type="range" min="0" max="${M}" value="${r}" aria-label="Boosting round"></label>
       <div class="row"><button data-step="-1">◀ Back</button><button data-step="1">Next round ▶</button>
         <span class="note">Jump to</span><button data-r="0">0</button><button data-r="1">1</button><button data-r="${best}">${best}</button><button data-r="${M}">${M}</button></div>
+      <div class="studio">
+        <div id="boost-art"></div>
+        <div id="boost-caption"></div>
+      </div>
       <div id="boost-step"></div>
       <p class="note">Each small tree is fitted to the <b>training residuals</b>: what earlier rounds still got wrong for the training people.
         Each chip is already shrunk by the learning rate (${gb.learning_rate}).</p>
@@ -302,6 +318,9 @@ function renderBoosting(b, person) {
     $("round-value").textContent = k;
     $("round").value = k;
     document.querySelectorAll("[data-r]").forEach((el) => el.classList.toggle("on", Number(el.dataset.r) === k));
+    const s = sculpt(b, k);
+    $("boost-art").innerHTML = s.svg;
+    $("boost-caption").innerHTML = s.caption;
     $("boost-step").innerHTML = stepTiles(b, p, person, k);
     $("boost-error").innerHTML = errorChart(b, k);
     $("boost-verdict").innerHTML = verdict(b, k);
@@ -327,6 +346,122 @@ function stepTiles(b, p, person, k) {
       <div class="tile"><small>After round ${k}</small><b>${fmt(p.staged[k])} ${u}</b></div>
     </div>
     ${away ? `<p class="note">↩️ This chip moved ${person.label} away from their measured value (${fmt(person.observed)} ${u}). Rounds improve the overall error, not every person every time.</p>` : ""}`;
+}
+
+// ---- The sculptor scene --------------------------------------------------------
+// The statue's progress follows the validation error: progress = how much of the drop from round 0 down to the
+// lowest validation error has happened by round k (using the lowest value seen so far, so carved marble never grows back).
+// At the best round the statue is finished; past it, scratches appear as validation error climbs (over-carving = overfitting).
+function rng(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const BLOCK = { x: 150, y: 26, w: 100, h: 240, cols: 8, rows: 16 };
+// Marble chunks covering the statue; outer chunks have lower thresholds, so they fall off first.
+const CHUNKS = (() => {
+  const r = rng(7);
+  const cw = BLOCK.w / BLOCK.cols, ch = BLOCK.h / BLOCK.rows;
+  const out = [];
+  for (let i = 0; i < BLOCK.cols; i++) for (let j = 0; j < BLOCK.rows; j++) {
+    const x0 = BLOCK.x + i * cw, y0 = BLOCK.y + j * ch, jit = () => (r() - 0.5) * 4;
+    const pts = [[x0 + jit(), y0 + jit()], [x0 + cw + jit(), y0 + jit()], [x0 + cw + jit(), y0 + ch + jit()], [x0 + jit(), y0 + ch + jit()]];
+    const inward = Math.min(i, BLOCK.cols - 1 - i, j * 0.5, (BLOCK.rows - 1 - j) * 0.5) / 4;
+    out.push({ pts, t: clamp(0.03 + 0.72 * inward + 0.25 * r(), 0.02, 0.97), shade: r() });
+  }
+  return out;
+})();
+const CRACKS = (() => {
+  const r = rng(99);
+  return Array.from({ length: 12 }, () => {
+    let x = 184 + r() * 32, y = 98 + r() * 105, d = `M${x.toFixed(1)},${y.toFixed(1)}`;
+    for (let s = 0; s < 3; s++) { x += (r() - 0.5) * 9; y += 3 + r() * 5; d += ` L${x.toFixed(1)},${y.toFixed(1)}`; }
+    return d;
+  });
+})();
+
+function statue(detail) {
+  return `
+    <g stroke="#b3ab9e" stroke-width="1.5" fill="url(#marble)" stroke-linejoin="round">
+      <path d="M186,212 L184,262 L197,262 L198,212 Z"/><path d="M203,212 L207,262 L219,262 L216,212 Z"/>
+      <ellipse cx="190" cy="264" rx="9" ry="4"/><ellipse cx="213" cy="264" rx="9" ry="4"/>
+      <path d="M222,94 Q234,120 231,164 L224,164 Q226,124 216,100 Z"/><circle cx="228" cy="168" r="5"/>
+      <path d="M180,160 L220,160 L227,216 L173,216 Z"/>
+      <path d="M176,94 Q200,86 224,94 L221,162 L179,162 Z"/>
+      <path d="M178,94 Q164,108 166,126 L174,126 Q172,110 184,100 Z"/><path d="M166,122 L172,128 L190,106 L184,100 Z"/>
+      <circle cx="188" cy="101" r="5"/>
+      <rect x="194" y="76" width="12" height="14" rx="3"/>
+      <ellipse cx="200" cy="62" rx="14" ry="17"/>
+      ${[[188, 50], [195, 45], [203, 44], [210, 48], [214, 56], [186, 58]].map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="5.5"/>`).join("")}
+    </g>
+    <g stroke="#9c9386" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="${detail.toFixed(2)}">
+      <path d="M178,97 L221,152" stroke="#d3cbbf" stroke-width="6"/>
+      <path d="M193,60 h4 M203,60 h4 M200,62 v6 M196,72 q4,2 8,0 M191,114 q9,4 18,0"/>
+      <path d="M186,170 L183,214 M194,168 L193,214 M206,168 L208,214 M214,168 L219,214"/>
+      <path d="M188,101 Q166,140 228,166" stroke="#a58f6a" stroke-width="1.6"/>
+    </g>`;
+}
+
+function sculpt(b, k) {
+  const u = b.units;
+  const gb = b.boosting;
+  const va = gb.rmse.validation;
+  const best = gb.best_validation_round, bestV = gb.best_validation_rmse;
+  const lowSoFar = Math.min(...va.slice(0, k + 1));
+  const progress = va[0] === bestV ? 1 : clamp((va[0] - lowSoFar) / (va[0] - bestV), 0, 1);
+  const worst = Math.max(...va.slice(best));
+  const damage = k > best && worst > bestV ? clamp((va[k] - bestV) / (worst - bestV), 0, 1) : 0;
+  const nCracks = Math.round(damage * CRACKS.length);
+  const done = k === best;
+  const r = rng(k + 1);
+  const flying = k === 0 || done ? "" : Array.from({ length: 5 }, () =>
+    `<polygon class="fly" points="0,0 4,-2 5,3 1,4" transform="translate(150 ${143 + r() * 8})" fill="#e6e1d8" stroke="#bfb7aa"
+      style="--dx:${(-10 - r() * 40).toFixed(0)}px;--dy:${(10 + r() * 50).toFixed(0)}px"/>`).join("");
+  const sparkles = done ? [[160, 40], [244, 70], [168, 190], [240, 220], [200, 18]].map(([x, y], i) =>
+    `<text class="sparkle" x="${x}" y="${y}" style="font-size:18px;animation-delay:${i * 0.2}s">✨</text>`).join("") : "";
+  const svg = `<svg viewBox="30 6 250 292" role="img" aria-label="A sculptor carving a statue; the statue is ${Math.round(progress * 100)}% finished">
+    <defs><linearGradient id="marble" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#fdfcf9"/><stop offset="1" stop-color="#d9d3c9"/></linearGradient></defs>
+    <rect x="30" y="6" width="250" height="292" rx="18" fill="var(--soft)"/>
+    <rect x="30" y="276" width="250" height="22" fill="#ddd3f6"/>
+    <ellipse cx="200" cy="284" rx="${(14 + 62 * progress).toFixed(1)}" ry="${(3 + 5 * progress).toFixed(1)}" fill="#e3ddd2"/>
+    <rect x="148" y="264" width="104" height="16" rx="4" fill="#cfc6b8"/>
+    ${statue(progress ** 1.5)}
+    <g stroke="#7d7468" stroke-width="1.3" fill="none">${CRACKS.slice(0, nCracks).map((d) => `<path d="${d}"/>`).join("")}</g>
+    ${CHUNKS.filter((c) => c.t > progress).map((c) => `<polygon points="${c.pts.map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" ")}"
+      fill="${c.shade > 0.5 ? "#e7e2d9" : "#e1dbd0"}" stroke="${c.shade > 0.5 ? "#e7e2d9" : "#e1dbd0"}" stroke-width="3" stroke-linejoin="round"/>`).join("")}
+    <g>
+      <rect x="70" y="210" width="10" height="56" rx="4" fill="#3d3a5c"/><rect x="86" y="210" width="10" height="56" rx="4" fill="#3d3a5c"/>
+      <ellipse cx="74" cy="268" rx="9" ry="4" fill="#2a2840"/><ellipse cx="92" cy="268" rx="9" ry="4" fill="#2a2840"/>
+      <path d="M64,150 Q83,136 102,150 L107,216 L59,216 Z" fill="#ff7a1a"/>
+      <path d="M98,160 L140,150" stroke="#f2c7a5" stroke-width="7" stroke-linecap="round"/>
+      <path d="M140,150 L153,147" stroke="#8a8f99" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="83" cy="128" r="14" fill="#f2c7a5"/>
+      <ellipse cx="80" cy="116" rx="15" ry="6" fill="#7b4dff"/><circle cx="80" cy="110" r="2.6" fill="#7b4dff"/>
+      <circle cx="90" cy="127" r="1.7" fill="#1f2140"/>
+      <path d="${done ? "M84,134 q5,5 10,0" : "M85,135 h8"}" stroke="#1f2140" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <g class="hammer ${done ? "rest" : k > 0 ? "swing" : ""}">
+        <path d="M92,156 L118,128" stroke="#f2c7a5" stroke-width="7" stroke-linecap="round"/>
+        <path d="M118,128 L129,115" stroke="#8b5a2b" stroke-width="4" stroke-linecap="round"/>
+        <rect x="122" y="106" width="17" height="9" rx="2" fill="#5d607a" transform="rotate(40 130 110)"/>
+      </g>
+    </g>
+    ${flying}${sparkles}
+  </svg>`;
+  const pct = Math.round(progress * 100);
+  const caption = k === 0 ? `🪨 <b>Round 0: an uncarved block.</b> Everyone gets the same guess, the training average.`
+    : k < best ? `🔨 <b>Chipping away…</b> The statue is <b>${pct}%</b> done, measured by how far the validation error has dropped toward its lowest point.`
+    : done ? `✨ <b>Masterpiece!</b> Round ${best} has the lowest validation error. The sculptor puts the hammer down here.`
+    : `⚠️ <b>Over-carving!</b> The statue was finished at round ${best}. Extra chips are scratching noise into it: validation error is up ${fmt(va[k] - bestV, 2)} ${u}.`;
+  return {
+    svg,
+    caption: `<p class="caption">${caption}</p>
+      <div class="meter" title="Statue progress"><span style="width:${pct}%"></span></div>
+      <p class="note">Statue progress (from validation error): ${pct}%${nCracks ? ` · ${nCracks} scratch${nCracks > 1 ? "es" : ""}` : ""}</p>`,
+  };
 }
 
 // Stretched round axis so the early rounds, where most of the change happens, get room.

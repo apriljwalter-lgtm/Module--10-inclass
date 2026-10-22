@@ -78,6 +78,21 @@
     .step .op { font-size: 26px; font-weight: 700; color: var(--muted); }
     .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--muted); }
     .legend i { display: inline-block; width: 18px; height: 0; border-top: 4px solid; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+    .studio { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(240px, 1.15fr); gap: 8px 18px; align-items: center; }
+    .studio svg { max-width: 400px; margin: 0 auto; }
+    .studio .caption { font-size: 16px; margin: 8px 0; }
+    .meter { height: 12px; background: #e9e4f7; border-radius: 999px; overflow: hidden; margin: 4px 0 2px; }
+    .meter span { display: block; height: 100%; background: linear-gradient(90deg, #ff9f1c, #ff006e, #7b4dff); border-radius: 999px; }
+    .hammer { transform-box: view-box; transform-origin: 92px 156px; }
+    .hammer.swing { animation: swing .45s ease-in-out; }
+    .hammer.rest { transform: rotate(38deg); }
+    @keyframes swing { 0% { transform: rotate(-42deg); } 55% { transform: rotate(10deg); } 100% { transform: rotate(0deg); } }
+    .fly { transform-box: fill-box; animation: fly .75s ease-out forwards; }
+    @keyframes fly { from { transform: translate(0, 0) rotate(0deg); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) rotate(220deg); opacity: 0; } }
+    .sparkle { transform-box: fill-box; transform-origin: center; animation: twinkle 1.2s ease-in-out infinite; }
+    @keyframes twinkle { 0%, 100% { opacity: .35; transform: scale(.7); } 50% { opacity: 1; transform: scale(1.15); } }
+    @media (prefers-reduced-motion: reduce) { .hammer.swing, .fly, .sparkle { animation: none; } }
+    @media (max-width: 640px) { .studio { grid-template-columns: 1fr; } }
     .verdict { border-radius: 14px; padding: 10px 14px; margin: 10px 0; font-size: 16px; }
     .verdict.good { background: #e3f9e9; } .verdict.bad { background: #fff0e6; }
 
