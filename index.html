@@ -6,137 +6,107 @@
   <title>Explain the Model</title>
   <style>
     :root {
-      --bg: #ffffff; --fg: #1d1d1f; --muted: #62626a; --line: #d9d9de; --accent: #2f6fde; --accent-soft: #e8effc;
-      --up: #c2410c; --down: #1d6fb8; --card: #f6f6f8; --warn-bg: #fff6e5; --warn-line: #f0c36d; --good: #15803d;
+      color-scheme: light;
+      --ink: #1f2140; --muted: #5d607a; --bg: #fff8f0; --white: #ffffff; --line: #ece4da;
+      --up: #ff5a36; --down: #2a8cff;
+      --c: #ff7a1a; --soft: #fff0e3;
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #151517; --fg: #ececef; --muted: #a0a0a8; --line: #36363c; --accent: #7aa7ff; --accent-soft: #1e2a44;
-        --up: #fb923c; --down: #60a5fa; --card: #1f1f23; --warn-bg: #2c2414; --warn-line: #8a6a26; --good: #4ade80;
-      }
-    }
+    body[data-sec="forest"] { --c: #14a35a; --soft: #e5f8ec; }
+    body[data-sec="boosting"] { --c: #7b4dff; --soft: #efe9ff; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
-    header, main { max-width: 960px; margin: 0 auto; padding: 16px; }
-    header { padding-bottom: 0; }
-    h1 { margin: 0 0 4px; font-size: 26px; }
-    h2 { margin: 8px 0 4px; font-size: 24px; }
-    h3 { margin: 0 0 8px; font-size: 18px; }
-    .subtitle { margin: 0 0 12px; color: var(--muted); }
-    nav { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
-    nav a { padding: 8px 14px; color: var(--fg); text-decoration: none; border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; }
-    nav a small { display: block; color: var(--muted); font-size: 12px; }
-    nav a.active { background: var(--card); border-color: var(--line); font-weight: 700; margin-bottom: -1px; }
-    .controls { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 12px 0 4px; align-items: end; }
-    .controls label { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); }
-    select, input, button { font: inherit; color: var(--fg); }
-    select, input[type="number"] { padding: 5px 8px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; max-width: 100%; }
-    button { padding: 5px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
-    button:hover { border-color: var(--accent); }
-    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-    input[type="range"] { width: 100%; accent-color: var(--accent); }
-    .dataset-blurb { font-size: 14px; color: var(--muted); margin: 4px 0 0; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .hero { background: linear-gradient(120deg, #ff5f6d 0%, #ffa94d 40%, #2fbf71 70%, #7b4dff 100%); color: #fff; }
+    .hero-in, main { max-width: 900px; margin: 0 auto; padding: 16px; }
+    h1 { margin: 6px 0 2px; font-size: 30px; text-shadow: 0 1px 2px rgba(0,0,0,.18); }
+    .hero p { margin: 0 0 14px; font-size: 16px; opacity: .95; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; }
+    nav a { padding: 8px 16px; border-radius: 999px; background: rgba(31,33,64,.32); color: #fff; text-decoration: none; font-weight: 600; }
+    nav a.active { background: #fff; color: var(--c); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+    .pickers { display: flex; flex-wrap: wrap; gap: 10px 18px; background: var(--white); color: var(--ink); border-radius: 14px; padding: 10px 14px; margin-top: 14px; box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+    .pickers label { display: flex; flex-direction: column; font-size: 13px; font-weight: 600; color: var(--muted); }
+    select, input, button { font: inherit; color: var(--ink); }
+    select, input[type="number"] { padding: 6px 10px; background: var(--white); border: 2px solid var(--line); border-radius: 10px; max-width: 100%; }
+    select:focus, input:focus { outline: none; border-color: var(--c); }
+    button { padding: 6px 14px; background: var(--white); border: 2px solid var(--c); color: var(--c); border-radius: 999px; cursor: pointer; font-weight: 600; }
+    button:hover, button.on { background: var(--c); color: #fff; }
+    input[type="range"] { width: 100%; accent-color: var(--c); height: 24px; }
 
-    .takeaway { font-size: 19px; font-weight: 600; margin: 4px 0 12px; }
-    .try { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 6px; margin: 12px 0; }
-    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 14px 0; }
-    .card > p:last-child { margin-bottom: 0; }
-    .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 14px; }
-    .warn { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+    h2 { font-size: 28px; margin: 10px 0 0; color: var(--c); }
+    .lead { font-size: 20px; font-weight: 600; margin: 4px 0 16px; }
+    .card { background: var(--white); border-radius: 18px; padding: 16px 18px; margin: 14px 0; box-shadow: 0 3px 12px rgba(31,33,64,.07); }
+    .card.soft { background: var(--soft); box-shadow: none; }
+    .card h3 { margin: 0 0 8px; font-size: 19px; }
+    .card p { margin: 6px 0; }
+    .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 14px; }
     .note { color: var(--muted); font-size: 14px; }
     .up { color: var(--up); } .down { color: var(--down); }
     .num { font-variant-numeric: tabular-nums; }
-    .big { font-size: 22px; font-weight: 700; }
-    .badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--up); color: #fff; margin-left: 6px; vertical-align: 1px; }
-    .tag { display: inline-block; font-size: 12px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
-    details { margin: 10px 0; }
-    details summary { cursor: pointer; font-weight: 600; }
-    table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-    td, th { border-bottom: 1px solid var(--line); padding: 5px 8px; text-align: left; }
-    td.num, th.num { text-align: right; }
-    tr.current td { font-weight: 700; }
-    svg { width: 100%; height: auto; display: block; overflow: visible; }
-    svg text { fill: var(--muted); font-size: 12px; }
-    .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin: 4px 0; }
-    .legend i { display: inline-block; width: 18px; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 5px; }
-    .legend i.dash { border-top-style: dashed; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+
+    /* Stat tiles */
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 12px 0; }
+    .tile { background: var(--soft); border-radius: 14px; padding: 10px 14px; border-left: 6px solid var(--c); }
+    .tile small { display: block; font-size: 13px; font-weight: 600; color: var(--muted); }
+    .tile b { font-size: 26px; color: var(--c); font-variant-numeric: tabular-nums; }
+    .tile.plain { border-left-color: #c9c2d8; background: #f6f3fa; }
+    .tile.plain b { color: var(--ink); }
+    .tile b.up { color: var(--up); } .tile b.down { color: var(--down); }
 
     /* Push & Pull */
-    .inputs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
-    .inputs label { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); }
-    .wf { display: grid; grid-template-columns: minmax(130px, 32%) 1fr 104px; row-gap: 4px; align-items: center; margin: 10px 0 4px; }
-    .wf .lbl { font-size: 14px; line-height: 1.25; padding-right: 8px; }
-    .wf .lbl small { display: block; color: var(--muted); font-size: 12px; }
-    .wf .val { text-align: right; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .wf .track { position: relative; height: 30px; }
-    .wf .bar { position: absolute; top: 5px; height: 20px; border-radius: 3px; min-width: 2px; }
+    .wf { display: grid; grid-template-columns: minmax(110px, 30%) 1fr 124px; row-gap: 6px; align-items: center; }
+    .wf .lbl { font-weight: 600; font-size: 15px; line-height: 1.2; }
+    .wf .lbl small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+    .wf .track { position: relative; height: 32px; background: #faf6f1; border-radius: 8px; }
+    .wf .bar { position: absolute; top: 4px; height: 24px; border-radius: 6px; min-width: 3px; }
     .wf .bar.up { background: var(--up); } .wf .bar.down { background: var(--down); }
-    .wf .mark { position: absolute; top: 0; width: 4px; height: 30px; margin-left: -2px; background: var(--fg); border-radius: 2px; }
-    .wf .guide { position: absolute; top: 0; bottom: 0; border-left: 1px dotted var(--muted); opacity: .6; }
-    .wf .obs { position: absolute; top: 0; bottom: 0; border-left: 2px dashed var(--good); }
-    .wf .row-end .lbl, .wf .row-end.val { font-weight: 700; }
-    .wf .sep { grid-column: 1 / -1; border-top: 1px solid var(--line); margin: 2px 0; }
-    .wf .axis { position: relative; height: 18px; font-size: 11px; color: var(--muted); }
-    .wf .axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
-    .wf .hl .lbl { font-weight: 700; }
-    .sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; font-variant-numeric: tabular-nums; font-size: 17px; margin: 8px 0; }
-    .sum .t { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.1; }
-    .sum .t small { font-size: 11px; color: var(--muted); font-weight: 400; }
-    .sum .op { color: var(--muted); }
-    .sum .total { font-weight: 700; }
-    .formula { font-family: ui-monospace, Consolas, monospace; font-size: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; overflow-x: auto; }
-    .hbar { display: grid; grid-template-columns: minmax(110px, 40%) 1fr; gap: 6px; align-items: center; font-size: 13px; margin: 4px 0; }
-    .hbar .b { position: relative; height: 16px; }
-    .hbar .b span { position: absolute; top: 0; height: 16px; border-radius: 3px; }
-    .hbar .b em { position: absolute; top: -1px; font-style: normal; font-size: 12px; white-space: nowrap; }
-
-    /* Forest */
-    .tree-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
-    .tree-card { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-    .tree-card b.guess { font-size: 18px; display: block; }
-    .tree-card ol { margin: 4px 0 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
-    .people-rows .pr { display: grid; grid-template-columns: minmax(120px, 30%) 1fr; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
-    .people-rows .pr:hover { background: var(--accent-soft); }
-    .people-rows .pr.current { outline: 2px solid var(--accent); }
-    .people-rows .pr .lbl { font-size: 13px; line-height: 1.2; }
-    .people-rows .pr .lbl small { display: block; color: var(--muted); }
+    .wf .pin { position: absolute; top: -2px; width: 6px; height: 36px; margin-left: -3px; border-radius: 3px; background: var(--ink); }
+    .wf .pin.end { background: var(--c); }
+    .wf .val { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .wf .star { background: #ffd43b; color: var(--ink); font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px; margin-left: 4px; white-space: nowrap; }
+    .eq { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 14px 0 4px; font-variant-numeric: tabular-nums; }
+    .chip { border-radius: 999px; padding: 4px 12px; font-weight: 700; color: #fff; }
+    .chip.start { background: var(--ink); } .chip.up { background: var(--up); color: #fff; } .chip.down { background: var(--down); color: #fff; }
+    .chip.total { background: var(--c); font-size: 19px; }
+    .eq .op { font-weight: 700; color: var(--muted); }
+    .inputs { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin: 10px 0; }
+    .inputs label { display: flex; flex-direction: column; font-size: 13px; font-weight: 600; color: var(--muted); }
+    details.card summary { cursor: pointer; font-weight: 700; font-size: 17px; color: var(--c); }
 
     /* Boosting */
-    .stepper { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
-    .step-eq { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
-    .step-eq .box { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; text-align: center; min-width: 120px; }
-    .step-eq .box small { display: block; color: var(--muted); font-size: 12px; }
-    .step-eq .box b { font-size: 20px; }
-    .step-eq .op { font-size: 22px; color: var(--muted); }
-    .verdict { border-left: 4px solid var(--accent); padding: 8px 12px; background: var(--bg); border-radius: 6px; margin: 10px 0; }
-    .verdict.bad { border-left-color: var(--up); }
-    .verdict.good { border-left-color: var(--good); }
+    .step { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; font-variant-numeric: tabular-nums; }
+    .step .tile { min-width: 140px; }
+    .step .op { font-size: 26px; font-weight: 700; color: var(--muted); }
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--muted); }
+    .legend i { display: inline-block; width: 18px; height: 0; border-top: 4px solid; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+    .verdict { border-radius: 14px; padding: 10px 14px; margin: 10px 0; font-size: 16px; }
+    .verdict.good { background: #e3f9e9; } .verdict.bad { background: #fff0e6; }
 
-    footer { max-width: 960px; margin: 0 auto; padding: 8px 16px 32px; color: var(--muted); font-size: 13px; }
+    svg { width: 100%; height: auto; display: block; overflow: visible; }
+    svg text { fill: var(--muted); font-size: 13px; }
+    footer { max-width: 900px; margin: 0 auto; padding: 4px 16px 28px; color: var(--muted); font-size: 13px; }
     @media (max-width: 560px) {
-      .wf { grid-template-columns: 38% 1fr 78px; }
+      .wf { grid-template-columns: 34% 1fr 84px; }
       .wf .lbl small { display: none; }
-      .step-eq .box { min-width: 90px; }
+      h1 { font-size: 24px; }
     }
   </style>
 </head>
 <body>
-  <header>
+  <div class="hero"><div class="hero-in">
     <h1>Explain the Model</h1>
-    <p class="subtitle">How three regression models turn health measurements into one predicted number, shown on real NHANES survey participants.</p>
+    <p>Three ways a model turns health measurements into one predicted number.</p>
     <nav>
-      <a href="#linear">Push &amp; Pull<small>linear regression</small></a>
-      <a href="#forest">Wisdom of the Forest<small>random forest</small></a>
-      <a href="#boosting">One Correction at a Time<small>gradient boosting</small></a>
+      <a href="#linear">➕ Push &amp; Pull</a>
+      <a href="#forest">🌳 Wisdom of the Forest</a>
+      <a href="#boosting">🔨 One Correction at a Time</a>
     </nav>
-    <div class="controls">
-      <label>Dataset (what the model predicts) <select id="dataset"></select></label>
-      <label>Example person (real survey participant) <select id="person"></select></label>
+    <div class="pickers">
+      <label>Dataset <select id="dataset"></select></label>
+      <label>Example person <select id="person"></select></label>
     </div>
-    <p class="dataset-blurb" id="blurb"></p>
-  </header>
+  </div></div>
   <main id="section"></main>
-  <footer>Data: CDC/NCHS National Health and Nutrition Examination Survey (NHANES) public-use files. Models were fitted in advance on the training rows; every number shown comes from those fitted models. The models describe associations in the data, not causes.</footer>
+  <footer>Data: CDC/NCHS NHANES public-use files. Models were fitted in advance; every number comes from those models. Models show associations, not causes.</footer>
   <script type="module" src="app.js"></script>
 </body>
 </html>

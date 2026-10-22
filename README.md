@@ -13,9 +13,10 @@ An app that explains three regression models to an anonymous visitor who knows a
 Submit the link to **this repository** on Canvas. Reviewers open the app link above.
 
 ## Design
-- **Push & Pull:** a waterfall chart. Each bar starts where the last ended, and a receipt-style sum shows starting point + pushes = prediction. Cards separate a coefficient (the same for everyone) from one person's push, and from the typical effect per SD (overall importance).
-- **Wisdom of the Forest:** a jellybean jar. Each tree is one guesser (bean), and a slider adds guessers so the running average settles. Tree cards show why the trees differ, and a five-person strip compares disagreement.
-- **One Correction at a Time:** a sculptor chipping a block. A round stepper shows previous prediction + chip = new prediction, alongside the training and validation error curves and a stopping-round verdict.
+Kept deliberately simple: one main picture per section, each with its own color.
+- **➕ Push & Pull (orange):** a waterfall from the starting point to the prediction, then a row of colored chips that add up. One short card separates a coefficient (the same for everyone) from one person's push.
+- **🌳 Wisdom of the Forest (green):** a jellybean jar where each bean is one tree's guess. A slider adds trees and the average line moves; partial forests are labelled.
+- **🔨 One Correction at a Time (purple):** a sculptor chipping a block. Step through rounds (previous + chip = new), then use the training and validation error chart to pick where to stop.
 
 Links can preselect a dataset and person, e.g. `?ds=sbp&p=P2#linear`.
 
